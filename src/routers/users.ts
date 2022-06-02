@@ -24,6 +24,8 @@ export function initUsersRouter(sequelizeClient: SequelizeClient): Router {
   router.route('/register')
     .post(initRegisterUserRequestHandler(sequelizeClient));
 
+  router.get('/home', (req, res) =>  res.json({ message: 'Welcome on home page' }))
+
   return router;
 }
 
