@@ -26,7 +26,7 @@ export function isValidToken(token: string): boolean {
   //throw new NotImplementedError('TOKEN_VALIDATION_NOT_IMPLEMENTED_YET');
   const secretKey = process.env.TOKEN_SECRET_KEY!
   const payload = jwt.verify(token, secretKey);
-  console.log(payload);
+  //console.log(payload);
   if (payload) {
     return true;
   } else {

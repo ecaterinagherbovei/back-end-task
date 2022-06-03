@@ -36,7 +36,6 @@ export function initTokenValidationRequestHandler(sequelizeClient: SequelizeClie
       if (!user) {
         throw new UnauthorizedError('AUTH_TOKEN_INVALID');
       }
-
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       (req as any).auth = {
         token,
@@ -51,10 +50,26 @@ export function initTokenValidationRequestHandler(sequelizeClient: SequelizeClie
 }
 
 // NOTE(roman): assuming that `tokenValidationRequestHandler` is placed before
-export function initAdminValidationRequestHandler(): RequestHandler {
-  return function adminValidationRequestHandler(req, res, next): void {
-    throw new NotImplementedError('ADMIN_VALIDATION_NOT_IMPLEMENTED_YET');
-  };
+export function initAdminValidationRequestHandler(sequelizeClient: SequelizeClient): RequestHandler {
+  return async function adminValidationRequestHandler(req, res, next): Promise<void> {
+    try {
+      const { models } = sequelizeClient;
+      const authorizationHeaderValue = req.header('authorization');
+      if (!authorizationHeaderValue) {
+        throw new UnauthorizedError('AUTH_MISSING');
+      }
+      const [type, token] = authorizationHeaderValue.split(' ');
+      if (type?.toLowerCase() == 'bearer') {
+        const { id } = extraDataFromToken(token);
+        const user = await models.users.findByPk(id);
+        if (user && user.type == UserType.ADMIN) {
+          return next();
+        }
+      }
+    } catch (error) {
+      return next(error);
+    }
+  }
 }
 
 export interface RequestAuth {

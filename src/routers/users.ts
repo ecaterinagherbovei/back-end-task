@@ -13,11 +13,11 @@ export function initUsersRouter(sequelizeClient: SequelizeClient): Router {
   const router = Router({ mergeParams: true });
 
   const tokenValidation = initTokenValidationRequestHandler(sequelizeClient);
-  const adminValidation = initAdminValidationRequestHandler();
+  const adminValidation = initAdminValidationRequestHandler(sequelizeClient);
 
   router.route('/')
-    .get(tokenValidation, initListUsersRequestHandler(sequelizeClient))
-    .post(tokenValidation, adminValidation, initCreateUserRequestHandler(sequelizeClient));
+    .get(tokenValidation, initListUsersRequestHandler(sequelizeClient)) //get all users
+    .post(tokenValidation, adminValidation, initCreateUserRequestHandler(sequelizeClient)); //create new user
 
   router.route('/login')
     .post(initLoginUserRequestHandler(sequelizeClient));

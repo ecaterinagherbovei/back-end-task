@@ -3,6 +3,7 @@ import * as dotenv from 'dotenv';
 import { initSequelizeClient } from './sequelize';
 import { initUsersRouter } from './routers';
 import { initErrorRequestHandler, initNotFoundRequestHandler } from './middleware';
+import { initPostsRouter } from './routers';
 
 const PORT = 8080;
 
@@ -23,6 +24,7 @@ async function main(): Promise<void> {
   app.use(express.json());
 
   app.use('/api/v1/users', initUsersRouter(sequelizeClient));
+  app.use('/api/v1/posts', initPostsRouter(sequelizeClient))
 
   app.use('/', initNotFoundRequestHandler());
 
