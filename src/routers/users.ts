@@ -1,6 +1,6 @@
 import { Router, RequestHandler } from 'express';
 import { Op } from 'sequelize';
-
+import bcrypt from 'bcrypt';
 import type { SequelizeClient } from '../sequelize';
 import type { User } from '../repositories/types';
 
@@ -20,11 +20,13 @@ export function initUsersRouter(sequelizeClient: SequelizeClient): Router {
     .post(tokenValidation, adminValidation, initCreateUserRequestHandler(sequelizeClient));
 
   router.route('/login')
-    .post(tokenValidation, initLoginUserRequestHandler(sequelizeClient));
+    .post(initLoginUserRequestHandler(sequelizeClient));
   router.route('/register')
     .post(initRegisterUserRequestHandler(sequelizeClient));
 
-  router.get('/home', (req, res) =>  res.json({ message: 'Welcome on home page' }))
+  router.get('/home',
+    tokenValidation,
+    (req, res) => res.json({ message: 'Welcome on home page' }))
 
   return router;
 }
@@ -82,10 +84,12 @@ function initLoginUserRequestHandler(sequelizeClient: SequelizeClient): RequestH
         raw: true,
       }) as Pick<User, 'id' | 'passwordHash'> | null;
       if (!user) {
+        //console.log("11111")
         throw new UnauthorizedError('EMAIL_OR_PASSWORD_INCORRECT');
       }
 
-      if (user.passwordHash !== hashPassword(password)) {
+      if (!(await bcrypt.compare(password, user.passwordHash))) {
+        //console.log("222222")
         throw new UnauthorizedError('EMAIL_OR_PASSWORD_INCORRECT');
       }
 
@@ -101,11 +105,8 @@ function initLoginUserRequestHandler(sequelizeClient: SequelizeClient): RequestH
 function initRegisterUserRequestHandler(sequelizeClient: SequelizeClient): RequestHandler {
   return async function createUserRequestHandler(req, res, next): Promise<void> {
     try {
-      // NOTE(roman): missing validation and cleaning
       const { name, email, password } = req.body as Omit<CreateUserData, 'type'>;
-
       await createUser({ type: UserType.BLOGGER, name, email, password }, sequelizeClient);
-
       return res.status(204).end();
     } catch (error) {
       next(error);
@@ -137,7 +138,7 @@ async function createUser(data: CreateUserData, sequelizeClient: SequelizeClient
     }
   }
 
-  await models.users.create({ type, name, email, passwordHash: password });
+  await models.users.create({ type, name, email, passwordHash: await hashPassword(password) });
 }
 
 type CreateUserData = Pick<User, 'type' | 'name' | 'email'> & { password: User['passwordHash'] };
