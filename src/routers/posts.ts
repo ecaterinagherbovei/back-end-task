@@ -1,6 +1,6 @@
 import { Router, RequestHandler } from 'express';
 import type { SequelizeClient } from '../sequelize';
-import { BadRequestError, UnauthorizedError } from '../errors';
+import { BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError } from '../errors';
 import { hashPassword, generateToken } from '../security';
 import { initTokenValidationRequestHandler, initAdminValidationRequestHandler, RequestAuth } from '../middleware/security';
 import { Post } from '../repositories/types';
@@ -16,9 +16,12 @@ export function initPostsRouter(sequelizeClient: SequelizeClient): Router {
 
     router.route('/')
         .get(tokenValidation, initGetAllPostsRequestHandler(sequelizeClient))
-
     router.route('/blogger/newPost')
         .post(tokenValidation, initCreatePostRequestHandler(sequelizeClient))
+    router.route('/blogger/editPost/:id')
+        .put(tokenValidation, initEditPostRequestHandler(sequelizeClient))
+    router.route('/blogger/deletePost/:id')
+        .delete(tokenValidation, initDeletePostRequestHandler(sequelizeClient))
 
     return router;
 }
@@ -56,6 +59,67 @@ function initGetAllPostsRequestHandler(sequelizeClient: SequelizeClient): Reques
                 .json(publicPosts)
         } catch (error) {
             next(error)
+        }
+    }
+}
+
+function initEditPostRequestHandler(sequelizeClient: SequelizeClient): RequestHandler {
+    return async function updatePost(req, res, next) {
+        const { models } = sequelizeClient;
+        try {
+            const userId = await getIdFromToken(req);
+            const postId = req.params.id;
+            const post = await models.posts.findOne({
+                where: {
+                    id: postId
+                }
+            })
+            if (userId !== post?.authorId) {
+                throw new ForbiddenError("YOU_CAN'T_EDIT_THIS_POST");
+            }
+            await models.posts.update(
+                {
+                    title: req.body.title,
+                    content: req.body.content
+                },
+                {
+                    where: {
+                        id: postId
+                    }
+                }
+            );
+            res.status(200).end();
+        } catch (error) {
+            next(error);
+        }
+    }
+}
+
+function initDeletePostRequestHandler(sequelizeClient: SequelizeClient): RequestHandler {
+    return async function deletePost(req, res, next) {
+        const { models } = sequelizeClient;
+        try {
+            const userId = await getIdFromToken(req);
+            const postId = req.params.id;
+            const post = await models.posts.findOne({
+                where: {
+                    id: postId
+                }
+            });
+            if (!post) {
+                throw new BadRequestError("THIS_POST_DOES_NOT_EXISTS");
+            }
+            if (userId !== post?.authorId) {
+                throw new ForbiddenError("YOU_CAN'T_DELETE_THIS_POST");
+            }
+            await models.posts.destroy({
+                where: {
+                    id: postId
+                }
+            });
+            res.status(200).end();
+        } catch (error) {
+            next(error);
         }
     }
 }
