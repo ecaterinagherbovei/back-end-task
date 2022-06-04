@@ -27,9 +27,23 @@ export function initPostsRouter(sequelizeClient: SequelizeClient): Router {
     router.route('/blogger/hidePost/:id')
         .put(tokenValidation, initHidePostRequestHandler(sequelizeClient))
     router.route('/blogger')
-        .get(tokenValidation, initGetBloggerPostsRequestHandler(sequelizeClient))
+        .get(tokenValidation, initGetPersonalPostsRequestHandler(sequelizeClient))
 
     // routes for admins
+    router.route('/admin/newPost')
+        .post(tokenValidation, adminValidation, initCreatePostRequestHandler(sequelizeClient))
+    router.route('/admin/editPost/:id')
+        .put(tokenValidation, adminValidation, initEditPostRequestHandler(sequelizeClient))
+    router.route('/admin/deletePost/:id')
+        .delete(tokenValidation, adminValidation, initDeletePostRequestHandler(sequelizeClient))
+    router.route('/admin/publishPost/:id')
+        .put(tokenValidation, adminValidation, initPublishPostRequestHandler(sequelizeClient))
+    router.route('/admin/hidePost/:id')
+        .put(tokenValidation, adminValidation, initHidePostRequestHandler(sequelizeClient))
+    router.route('/admin')
+        .get(tokenValidation, adminValidation, initGetPersonalPostsRequestHandler(sequelizeClient))
+    router.route('/admin/deletePublicPost/:id')
+        .delete(tokenValidation, adminValidation, initDeletePublicPostRequestHandler(sequelizeClient))
 
     return router;
 }
@@ -208,7 +222,7 @@ function initHidePostRequestHandler(sequelizeClient: SequelizeClient): RequestHa
     }
 }
 
-function initGetBloggerPostsRequestHandler(sequelizeClient: SequelizeClient): RequestHandler {
+function initGetPersonalPostsRequestHandler(sequelizeClient: SequelizeClient): RequestHandler {
     return async function getPosts(req, res, next) {
         const { models } = sequelizeClient;
         try {
@@ -227,7 +241,30 @@ function initGetBloggerPostsRequestHandler(sequelizeClient: SequelizeClient): Re
 
         } catch (error) {
             next(error);
-        }        
+        }
+    }
+}
+
+function initDeletePublicPostRequestHandler(sequelizeClient: SequelizeClient): RequestHandler {
+    return async function deletePublicPost(req, res, next) {
+        const { models } = sequelizeClient;
+        try {
+            const postId = req.params.id;
+            const deleted = await models.posts.destroy({
+                where: {
+                    id: postId,
+                    isHidden: false,
+                }
+            });
+            if (deleted) {
+                res.status(200).end();
+            } else {
+                res.status(400).end();
+                throw new BadRequestError("ERROR_WHILE_DELETING_POST");
+            }
+        } catch (error) {
+            next(error);
+        }
     }
 }
 
