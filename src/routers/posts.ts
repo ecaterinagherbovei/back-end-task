@@ -22,6 +22,14 @@ export function initPostsRouter(sequelizeClient: SequelizeClient): Router {
         .put(tokenValidation, initEditPostRequestHandler(sequelizeClient))
     router.route('/blogger/deletePost/:id')
         .delete(tokenValidation, initDeletePostRequestHandler(sequelizeClient))
+    router.route('/blogger/publishPost/:id')
+        .put(tokenValidation, initPublishPostRequestHandler(sequelizeClient))
+    router.route('/blogger/hidePost/:id')
+        .put(tokenValidation, initHidePostRequestHandler(sequelizeClient))
+    router.route('/blogger')
+        .get(tokenValidation, initGetBloggerPostsRequestHandler(sequelizeClient))
+
+    // routes for admins
 
     return router;
 }
@@ -121,6 +129,105 @@ function initDeletePostRequestHandler(sequelizeClient: SequelizeClient): Request
         } catch (error) {
             next(error);
         }
+    }
+}
+
+function initPublishPostRequestHandler(sequelizeClient: SequelizeClient): RequestHandler {
+    return async function publishPost(req, res, next) {
+        const { models } = sequelizeClient;
+        try {
+            const userId = await getIdFromToken(req);
+            const postId = req.params.id;
+            const post = await models.posts.findOne({
+                where: {
+                    id: postId
+                }
+            });
+            if (userId !== post?.authorId) {
+                throw new ForbiddenError("YOU_ARE_NOT_THE_AUTHOR_OF_THIS_POST");
+            }
+            if (!post) {
+                throw new BadRequestError("THIS_POST_DOES_NOT_EXISTS");
+            }
+            if (post?.isHidden == false) {
+                throw new BadRequestError("THIS_POST_IS_ALREADY_PUBLISHED");
+            } else if (post?.isHidden == true) {
+                await models.posts.update(
+                    {
+                        isHidden: false,
+                    },
+                    {
+                        where: {
+                            id: postId
+                        }
+                    }
+                );
+            }
+            res.status(200).end();
+        } catch (error) {
+            next(error);
+        }
+    }
+}
+
+function initHidePostRequestHandler(sequelizeClient: SequelizeClient): RequestHandler {
+    return async function hidePost(req, res, next) {
+        const { models } = sequelizeClient;
+        try {
+            const userId = await getIdFromToken(req);
+            const postId = req.params.id;
+            const post = await models.posts.findOne({
+                where: {
+                    id: postId
+                }
+            });
+            if (userId !== post?.authorId) {
+                throw new ForbiddenError("YOU_ARE_NOT_THE_AUTHOR_OF_THIS_POST");
+            }
+            if (!post) {
+                throw new BadRequestError("THIS_POST_DOES_NOT_EXISTS");
+            }
+            if (post?.isHidden == true) {
+                throw new BadRequestError("THIS_POST_IS_ALREADY_HIDDEN");
+            } else if (post?.isHidden == false) {
+                await models.posts.update(
+                    {
+                        isHidden: true,
+                    },
+                    {
+                        where: {
+                            id: postId
+                        }
+                    }
+                );
+            }
+            res.status(200).end();
+        } catch (error) {
+            next(error);
+        }
+    }
+}
+
+function initGetBloggerPostsRequestHandler(sequelizeClient: SequelizeClient): RequestHandler {
+    return async function getPosts(req, res, next) {
+        const { models } = sequelizeClient;
+        try {
+            const userId = await getIdFromToken(req);
+            const publicPosts = await models.posts.findAll({
+                attributes: ['title', 'content', 'is_hidden'],
+                where: {
+                    authorId: userId
+                },
+                raw: true,
+            })
+            //console.log(publicPosts)
+            res
+                .status(200)
+                .json(publicPosts)
+
+        } catch (error) {
+            next(error);
+        }        
     }
 }
 

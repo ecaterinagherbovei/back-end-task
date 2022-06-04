@@ -12,6 +12,7 @@ export class Post extends Model {
   title!: string;
   content!: string;
   authorId!: number;
+  isHidden!: boolean;
   createdAt!: Date;
   updatedAt!: Date;
 
