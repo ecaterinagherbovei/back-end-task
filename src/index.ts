@@ -14,7 +14,7 @@ async function main(): Promise<void> {
   // so that they don't end up in the git repo
   const sequelizeClient = await initSequelizeClient({
     dialect: 'postgres',
-    host: 'localhost',
+    host: process.env.DB_HOST!,
     port: 5432,
     username: process.env.USER!,
     password: process.env.PASS!,
